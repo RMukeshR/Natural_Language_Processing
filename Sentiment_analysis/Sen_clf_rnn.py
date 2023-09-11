@@ -107,61 +107,35 @@ x_train_w2vglv =np.concatenate((x_train_w2v, x_train_glv), axis=1)
 print(x_train_w2vglv.shape,y_train.shape)
 
 
-from sklearn import svm
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN, Dense
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-
-X_train_w2v, X_test_w2v, Y_train_w2v, Y_test_w2v = train_test_split(x_train_w2v, y_train, test_size=0.2, random_state=42)
-
-clf = svm.SVC(kernel='linear')
-
-clf.fit(X_train_w2v, Y_train_w2v)
-
-y_pred_w2v= clf.predict(X_test_w2v)
-
-accuracy = accuracy_score(Y_test_w2v, y_pred_w2v)
-print(f"Accuracy with word2vec: {accuracy * 100:.4f}%")
+from tensorflow.keras.callbacks import EarlyStopping
 
 
+x_train_w2vglv = x_train_w2vglv.reshape((x_train_w2vglv.shape[0], x_train_w2vglv.shape[1], 1))
+
+x_train, x_test, y_train, y_test = train_test_split(x_train_w2vglv, y_train, test_size=0.2, random_state=42)
 
 
-X_train_glv, X_test_glv, Y_train_glv, Y_test_glv = train_test_split(x_train_glv, y_train, test_size=0.2, random_state=42)
+# Define the RNN model
+model = Sequential()
+model.add(SimpleRNN(128, input_shape=(600, 1), activation='relu'))  # Adjust the number of units as needed
+model.add(Dense(1, activation='sigmoid'))  # Output layer for binary classification
 
-clf = svm.SVC(kernel='linear')
+# Compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-clf.fit(X_train_glv, Y_train_glv)
+# Define early stopping callback
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
-y_pred_glv= clf.predict(X_test_glv)
-
-accuracy = accuracy_score(Y_test_glv, y_pred_glv)
-print(f"Accuracy with glove: {accuracy * 100:.4f}%")
-
-
-
-
-from sklearn import svm
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-
-x_train_w2vglv, X_test_w2vglv, Y_train_w2vglv, Y_test_w2vglv = train_test_split(x_train_w2vglv, y_train, test_size=0.2, random_state=42)
-
-clf = svm.SVC(kernel='linear')
-
-clf.fit(x_train_w2vglv, Y_train_w2vglv)
-
-y_pred_w2vglv= clf.predict(X_test_w2vglv)
-
-accuracy = accuracy_score(Y_test_w2vglv, y_pred_w2vglv)
-print(f"Accuracy with word2vecglv: {accuracy * 100:.4f}%")
+# Train the model with early stopping
+model.fit(x_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
 
 
-
-
-
-
-
-#########################################################################
-#OUTPUT
-# Accuracy with word2vec: 76.6000%
-# Accuracy with glove: 76.6000%
-# Accuracy with w2vglv: 76.2500%
+y_pred = model.predict(x_test)
+y_pred_binary = (y_pred > 0.5).astype(int)  # Convert predicted probabilities to binary labels
+accuracy = accuracy_score(y_test, y_pred_binary)
+print(f"Test Accuracy of RNN: {accuracy:.4f}")
